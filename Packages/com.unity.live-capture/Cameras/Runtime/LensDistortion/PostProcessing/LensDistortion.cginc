@@ -77,7 +77,6 @@ float2 CameraToImagePlane(float2 coords)
 float2 UndistortUV(float2 uv)
 {
     float2 coords = ImagePlaneToCamera(uv);
-//    coords = EvaluateDistortionModel(coords);
     coords = UndistortPoint(coords);
     return CameraToImagePlane(coords);
 }
