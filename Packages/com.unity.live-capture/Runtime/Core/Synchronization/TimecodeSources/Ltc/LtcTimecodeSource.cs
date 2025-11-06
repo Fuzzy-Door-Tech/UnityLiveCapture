@@ -85,10 +85,9 @@ namespace Unity.LiveCapture.Ltc
 
             m_Decoder.FrameDecoded += OnFrameDecoded;
 
-            //  if (string.IsNullOrEmpty(m_Device))//Developer Edit, we cant avoid reset the microphone device id because we need to pick the current device at runtime, since it will be running on a different machine or iphone
-            //  {
+            // Always reset device to ensure the correct microphone is selected at runtime,
+            // as the device ID may differ across machines or platforms.
             Reset();
-            //  }
 
             StartRecording();
         }
