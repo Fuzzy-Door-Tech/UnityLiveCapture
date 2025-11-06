@@ -65,7 +65,7 @@ namespace Unity.LiveCapture.Ltc
             }
             else
             {
-                m_Device = null; // Developer Edit. If not microphones found, reset to null. Otherwise it may try to load a microphone from another computer
+                m_Device = null; // Developer Edit. If no microphones found, reset to null. Otherwise it may try to load a microphone from another computer
             }
         }
 
