@@ -25,7 +25,7 @@ namespace Unity.LiveCapture
         /// multiple of 80, 100, and 2048, which allows for exact precision when using those values or smaller
         /// powers of 2.
         /// </remarks>
-        public const int DefaultResolution = 51200;
+        public const int DefaultResolution = 240;
 
         [SerializeField]
         ushort m_Subframe;

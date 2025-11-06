@@ -11,7 +11,7 @@ namespace Unity.LiveCapture
         /// <remarks>
         /// This value may change during a frame.
         /// </remarks>
-        FrameRate FrameRate { get; }
+        FrameRate FrameRate { get; set; }
 
         /// <summary>
         /// The frame time and frame rate to use for the current frame, if available.

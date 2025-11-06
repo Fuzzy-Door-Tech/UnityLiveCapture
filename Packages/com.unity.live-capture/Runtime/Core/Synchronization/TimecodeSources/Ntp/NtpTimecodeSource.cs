@@ -30,7 +30,12 @@ namespace Unity.LiveCapture.Ntp
         public override string FriendlyName => $"NTP ({name})";
 
         /// <inheritdoc />
-        public override FrameRate FrameRate => m_FrameRate;
+        
+        public override FrameRate FrameRate
+        {
+            get => m_FrameRate;
+            set => m_FrameRate = value;
+        }
 
         void OnValidate()
         {

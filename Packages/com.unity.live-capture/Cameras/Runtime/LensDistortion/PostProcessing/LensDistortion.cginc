@@ -46,6 +46,24 @@ float2 EvaluateDistortionModel(float2 coords)
     return coords * radial + tangential;
 }
 
+// max_iterations is set to a small number 10 to minimize the computation. One might increase it if computing power allows.
+float2 UndistortPoint(float2 distorted_coords, float tolerance = 1e-6, int max_iterations = 10)
+{
+    float2 undistorted_coords = distorted_coords; // Initial guess
+    for (int i = 0; i < max_iterations; ++i)
+    {
+        float2 estimated_distorted_coords = EvaluateDistortionModel(undistorted_coords);
+        float2 error = estimated_distorted_coords - distorted_coords;
+        if (dot(error, error) < tolerance * tolerance)
+        {
+            break;
+        }
+        // Simple correction, adjust factor as necessary for convergence
+        undistorted_coords -= error * 0.5;
+    }
+    return undistorted_coords;
+}
+
 float2 ImagePlaneToCamera(float2 coords)
 {
     return (coords - _PrincipalPoint.xy) / _DistortedFocalLength.xy;
@@ -59,6 +77,6 @@ float2 CameraToImagePlane(float2 coords)
 float2 UndistortUV(float2 uv)
 {
     float2 coords = ImagePlaneToCamera(uv);
-    coords = EvaluateDistortionModel(coords);
+    coords = UndistortPoint(coords);
     return CameraToImagePlane(coords);
 }

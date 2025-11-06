@@ -13,7 +13,7 @@ namespace Unity.LiveCapture.Rendering.Editor
         static SerializedProperty GetRenderPasses()
         {
             // We assume that an asset must be set, and the array of ScriptableRenderData should not be empty.
-            var urpAsset = GraphicsSettings.renderPipelineAsset as UniversalRenderPipelineAsset;
+            var urpAsset = GraphicsSettings.defaultRenderPipeline as UniversalRenderPipelineAsset;
             Assert.IsNotNull(urpAsset, $"Expected GraphicsSettings.renderPipelineAsset to be an instance of {nameof(UniversalRenderPipelineAsset)}");
 
             var rendererDataField = typeof(UniversalRenderPipelineAsset).GetField("m_RendererDataList", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -96,7 +96,7 @@ namespace Unity.LiveCapture.Rendering.Editor
             return renderFeature;
         }
 
-        public static bool CurrentPipelineIsUrp() => GraphicsSettings.renderPipelineAsset is UniversalRenderPipelineAsset;
+        public static bool CurrentPipelineIsUrp() => GraphicsSettings.defaultRenderPipeline is UniversalRenderPipelineAsset;
     }
 }
 #endif
