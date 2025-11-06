@@ -138,7 +138,8 @@ namespace Unity.LiveCapture.Ltc
             // determine the sample rate suitable for the audio
             Microphone.GetDeviceCaps(m_Device, out var minFreq, out var maxFreq);
 
-            var sampleRate = k_TargetSampleRate;//Mathf.Clamp(k_TargetSampleRate, minFreq, maxFreq); //Developer Edit: this clamp logic is broken because if minFreq and maxFreq is 0, it means that the device support any range
+            // Don't clamp sample rate: when minFreq and maxFreq are 0, the device supports any sample rate
+            var sampleRate = k_TargetSampleRate;
 
             // prepare the decoder
             m_Decoder.Initialize(sampleRate, m_FrameRate.AsFloat());
