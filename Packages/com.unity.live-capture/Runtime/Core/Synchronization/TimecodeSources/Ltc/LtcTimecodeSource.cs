@@ -48,7 +48,6 @@ namespace Unity.LiveCapture.Ltc
         public override string FriendlyName => $"LTC ({name})";
 
         /// <inheritdoc />
-        //public override FrameRate FrameRate => m_FrameRate;
         
         public override FrameRate FrameRate
         {
