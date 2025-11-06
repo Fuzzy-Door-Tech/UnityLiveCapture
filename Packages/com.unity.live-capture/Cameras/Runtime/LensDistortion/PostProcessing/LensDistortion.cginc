@@ -46,7 +46,7 @@ float2 EvaluateDistortionModel(float2 coords)
     return coords * radial + tangential;
 }
 
-// max_iterations is set to as a small number 10 to minimize the computation. One might increase it if computing power allows.
+// max_iterations is set to a small number 10 to minimize the computation. One might increase it if computing power allows.
 float2 UndistortPoint(float2 distorted_coords, float tolerance = 1e-6, int max_iterations = 10)
 {
     float2 undistorted_coords = distorted_coords; // Initial guess
