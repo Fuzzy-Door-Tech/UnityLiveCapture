@@ -20,7 +20,7 @@ namespace Unity.LiveCapture
         public virtual string FriendlyName => $"{GetType().Name} ({name})";
 
         /// <inheritdoc/>
-        public abstract FrameRate FrameRate { get; }
+        public abstract FrameRate FrameRate { get; set; }
 
         /// <inheritdoc/>
         public FrameTimeWithRate? CurrentTime => m_State?.CurrentTime;

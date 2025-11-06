@@ -59,7 +59,7 @@ namespace Unity.LiveCapture
         /// </summary>
         public IEnumerable<Connection> Connections => m_Connections.Where(c => c != null);
 
-        ConnectionManager()
+        public ConnectionManager()
         {
             if (s_Instance != null)
             {

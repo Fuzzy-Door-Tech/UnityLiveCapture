@@ -289,7 +289,7 @@ namespace Unity.LiveCapture.Cameras
             var format = GraphicsFormat.R8G8B8A8_UNorm;
 
 #if HDRP_14_0_OR_NEWER
-            if (GraphicsSettings.renderPipelineAsset is HDRenderPipelineAsset asset)
+            if (GraphicsSettings.defaultRenderPipeline is HDRenderPipelineAsset asset)
             {
                 format = (GraphicsFormat)asset.currentPlatformRenderPipelineSettings.colorBufferFormat;
             }

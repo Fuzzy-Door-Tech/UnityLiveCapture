@@ -13,7 +13,11 @@
 
     float2 ApplyScaleAndBias(float2 xy)
     {
+#if defined(USING_OVERSCAN)
         return xy * _ScaleAndBias.xy + _ScaleAndBias.zw;
+#else
+        return xy;
+#endif
     }
 
     float2 ApplyScaleAndBiasInverse(float2 xy)

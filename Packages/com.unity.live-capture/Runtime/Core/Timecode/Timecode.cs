@@ -102,7 +102,7 @@ namespace Unity.LiveCapture
             int seconds,
             int frames,
             Subframe subframe = default,
-            bool isDropFrame = true)
+            bool isDropFrame = false)
         {
             var framesPerSecond = (int)Math.Ceiling((double)frameRate);
             var framesPerMinute = framesPerSecond * 60;

@@ -147,14 +147,14 @@ namespace Unity.LiveCapture.VirtualCamera
             }
 
 #if HDRP_14_0_OR_NEWER
-            if (GraphicsSettings.renderPipelineAsset is HDRenderPipelineAsset)
+            if (GraphicsSettings.defaultRenderPipeline is HDRenderPipelineAsset)
             {
                 m_Impl = new HdrpFocusPlaneImpl(m_ComposeMaterial);
             }
 #endif
 
 #if URP_14_0_OR_NEWER
-            if (GraphicsSettings.renderPipelineAsset is UniversalRenderPipelineAsset)
+            if (GraphicsSettings.defaultRenderPipeline is UniversalRenderPipelineAsset)
             {
                 m_Impl = new UrpFocusPlaneImpl(m_ComposeMaterial);
             }
@@ -162,7 +162,7 @@ namespace Unity.LiveCapture.VirtualCamera
 
             if (m_Impl == null)
             {
-                Assert.IsNull(GraphicsSettings.renderPipelineAsset,
+                Assert.IsNull(GraphicsSettings.defaultRenderPipeline,
                     $"{nameof(FocusPlaneRenderer)}: no SRP implementation, yet cannot default to legacy render pipeline.");
 
                 m_Impl = new LegacyFocusPlaneImpl(m_RenderMaterial, m_ComposeMaterial);

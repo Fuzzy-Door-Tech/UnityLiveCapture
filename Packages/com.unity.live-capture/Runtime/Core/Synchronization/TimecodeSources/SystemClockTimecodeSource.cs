@@ -48,8 +48,15 @@ namespace Unity.LiveCapture
         /// <inheritdoc/>
         public override string FriendlyName => $"System Clock ({name})";
 
+        public override FrameRate FrameRate
+        {
+            get => m_FrameRate;
+            set => m_FrameRate = value;
+        }
+
         /// <inheritdoc />
-        public override FrameRate FrameRate => m_FrameRate;
+        //public override FrameRate FrameRate => m_FrameRate;
+        
 
         /// <inheritdoc />
         protected override bool TryPollTimecode(out FrameRate frameRate, out Timecode timecode)

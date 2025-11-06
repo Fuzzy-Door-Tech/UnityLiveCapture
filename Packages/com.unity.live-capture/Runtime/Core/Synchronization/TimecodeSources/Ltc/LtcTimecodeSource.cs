@@ -30,7 +30,7 @@ namespace Unity.LiveCapture.Ltc
         [SerializeField, Tooltip("The frame rate of the timecodes.")]
         [OnlyStandardFrameRates]
         FrameRate m_FrameRate = StandardFrameRate.FPS_24_00;
-
+        
         [SerializeField, Tooltip("The LTC audio line in.")]
         string m_Device;
 
@@ -48,7 +48,13 @@ namespace Unity.LiveCapture.Ltc
         public override string FriendlyName => $"LTC ({name})";
 
         /// <inheritdoc />
-        public override FrameRate FrameRate => m_FrameRate;
+        //public override FrameRate FrameRate => m_FrameRate;
+        
+        public override FrameRate FrameRate
+        {
+            get => m_FrameRate;
+            set => m_FrameRate = value;
+        }
 
         void Reset()
         {
@@ -57,6 +63,10 @@ namespace Unity.LiveCapture.Ltc
             if (devices.Length > 0)
             {
                 m_Device = devices[0];
+            }
+            else
+            {
+                m_Device = null; // Developer Edit. If not microphones found, reset to null. Otherwise it may try to load a microphone from another computer
             }
         }
 
@@ -76,10 +86,10 @@ namespace Unity.LiveCapture.Ltc
 
             m_Decoder.FrameDecoded += OnFrameDecoded;
 
-            if (string.IsNullOrEmpty(m_Device))
-            {
-                Reset();
-            }
+            //  if (string.IsNullOrEmpty(m_Device))//Developer Edit, we cant avoid reset the microphone device id because we need to pick the current device at runtime, since it will be running on a different machine or iphone
+            //  {
+            Reset();
+            //  }
 
             StartRecording();
         }
@@ -129,7 +139,8 @@ namespace Unity.LiveCapture.Ltc
 
             // determine the sample rate suitable for the audio
             Microphone.GetDeviceCaps(m_Device, out var minFreq, out var maxFreq);
-            var sampleRate = Mathf.Clamp(k_TargetSampleRate, minFreq, maxFreq);
+
+            var sampleRate = k_TargetSampleRate;//Mathf.Clamp(k_TargetSampleRate, minFreq, maxFreq); //Developer Edit: this clamp logic is broken because if minFreq and maxFreq is 0, it means that the device support any range
 
             // prepare the decoder
             m_Decoder.Initialize(sampleRate, m_FrameRate.AsFloat());
@@ -180,31 +191,38 @@ namespace Unity.LiveCapture.Ltc
                 return false;
             }
 
-            var clipPos = Microphone.GetPosition(m_Device);
-
-            if (clipPos == m_ClipPos)
+            try
             {
+                var clipPos = Microphone.GetPosition(m_Device);
+
+                if (clipPos == m_ClipPos)
+                {
+                    return true;
+                }
+
+                var channelCount = m_Clip.channels;
+                var channel = Mathf.Clamp(m_Channel, 0, channelCount - 1);
+
+                m_Clip.GetData(m_Buffer, m_ClipPos);
+
+                var count = clipPos - m_ClipPos;
+
+                if (count < 0)
+                    count += m_Clip.samples;
+
+                for (var i = 0; i < count; i++)
+                {
+                    var sample = m_Buffer[(i * channelCount) + channel];
+                    m_Decoder.Decode(sample);
+                }
+
+                m_ClipPos = clipPos;
                 return true;
             }
-
-            var channelCount = m_Clip.channels;
-            var channel = Mathf.Clamp(m_Channel, 0, channelCount - 1);
-
-            m_Clip.GetData(m_Buffer, m_ClipPos);
-
-            var count = clipPos - m_ClipPos;
-
-            if (count < 0)
-                count += m_Clip.samples;
-
-            for (var i = 0; i < count; i++)
+            catch (Exception e)
             {
-                var sample = m_Buffer[(i * channelCount) + channel];
-                m_Decoder.Decode(sample);
+                return false;
             }
-
-            m_ClipPos = clipPos;
-            return true;
         }
 
         void OnFrameDecoded(LtcDecoder.Frame frame)
