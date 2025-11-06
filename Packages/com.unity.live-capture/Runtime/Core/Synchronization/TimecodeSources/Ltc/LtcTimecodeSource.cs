@@ -217,7 +217,7 @@ namespace Unity.LiveCapture.Ltc
                 m_ClipPos = clipPos;
                 return true;
             }
-            catch (Exception e)
+            catch
             {
                 return false;
             }
