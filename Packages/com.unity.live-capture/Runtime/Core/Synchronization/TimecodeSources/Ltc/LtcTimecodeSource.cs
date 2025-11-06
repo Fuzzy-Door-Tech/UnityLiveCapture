@@ -218,7 +218,7 @@ namespace Unity.LiveCapture.Ltc
                 m_ClipPos = clipPos;
                 return true;
             }
-            catch
+            catch (Exception e)
             {
                 Debug.LogWarning($"Error processing LTC samples: {e.Message}");
                 return false;
