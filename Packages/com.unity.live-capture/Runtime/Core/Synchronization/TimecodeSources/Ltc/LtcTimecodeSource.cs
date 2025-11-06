@@ -220,6 +220,7 @@ namespace Unity.LiveCapture.Ltc
             }
             catch
             {
+                Debug.LogWarning($"Error processing LTC samples: {e.Message}");
                 return false;
             }
         }
