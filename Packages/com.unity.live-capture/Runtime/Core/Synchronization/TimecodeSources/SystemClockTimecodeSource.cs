@@ -55,7 +55,6 @@ namespace Unity.LiveCapture
         }
 
         /// <inheritdoc />
-        //public override FrameRate FrameRate => m_FrameRate;
         
 
         /// <inheritdoc />
