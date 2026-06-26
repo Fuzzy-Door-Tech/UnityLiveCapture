@@ -20,13 +20,14 @@ namespace Unity.LiveCapture.Monotonic
         protected override void OnEnable()
         {
             base.OnEnable();
-#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
             QueryPerformanceFrequency(out _frequency);
             QueryPerformanceCounter(out _startTicks);
             ResetSession(DateTime.Now, (double)_startTicks / _frequency);
             Debug.Log($"Windows: WallClock={DateTime.Now}, MonotonicStart={(double)_startTicks / _frequency}");
 #else
-            // In Editor, use Unity's time since startup for consistency
+            // Non-Windows editors (and unsupported platforms): use Unity's time since
+            // startup. The Windows editor now takes the QPC path above, matching players.
             _startTicks = 0; // Reset to align with wall clock
             _frequency = 1; // Not used with Time.realtimeSinceStartupAsDouble
             double monotonicStart = Time.realtimeSinceStartupAsDouble;
@@ -37,15 +38,15 @@ namespace Unity.LiveCapture.Monotonic
 
         protected override double GetMonotonicTimeInternal()
         {
-#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
             QueryPerformanceCounter(out long currentTicks);
             return (double)currentTicks / _frequency;
 #else
-            return Time.realtimeSinceStartupAsDouble; // Consistent Editor fallback
+            return Time.realtimeSinceStartupAsDouble; // Non-Windows editor / unsupported-platform fallback
 #endif
         }
 
-#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
         [DllImport("Kernel32.dll")]
         private static extern bool QueryPerformanceCounter(out long ticks);
 
