@@ -1,4 +1,4 @@
-#if URP_14_0_OR_NEWER
+#if URP_14_0_OR_NEWER && !UNITY_6000_5_OR_NEWER
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
