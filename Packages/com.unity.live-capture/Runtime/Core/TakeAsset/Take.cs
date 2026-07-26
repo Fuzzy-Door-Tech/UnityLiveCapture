@@ -131,14 +131,23 @@ namespace Unity.LiveCapture
         }
 
         /// <summary>
-        /// Gets the object instanceID referenced by Screenshot.
+        /// Gets the object entity ID referenced by Screenshot.
         /// This doesn't load the texture asset and can be passed to a number
         /// of AssetDatabase functions.
         /// </summary>
         /// <returns>False if the Screenshot reference isn't set.</returns>
-        internal bool TryGetScreenshotInstanceID(out int instanceID)
+        internal bool TryGetScreenshotEntityId(
+#if UNITY_6000_5_OR_NEWER
+            out EntityId entityId)
+#else
+            out int entityId)
+#endif
         {
-            instanceID = m_Screenshot.instanceID;
+#if UNITY_6000_5_OR_NEWER
+            entityId = m_Screenshot.entityId;
+#else
+            entityId = m_Screenshot.instanceID;
+#endif
             return m_Screenshot.isSet;
         }
 

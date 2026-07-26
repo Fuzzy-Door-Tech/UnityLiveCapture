@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using UnityEditor;
+using UnityEngine;
 
 using UnityObject = UnityEngine.Object;
 
@@ -55,13 +56,19 @@ namespace Unity.LiveCapture
         }
 
         /// <summary>
-        /// Retrieves the GUID of an asset given its instanceID.
+        /// Retrieves the GUID of an asset given its entity ID.
         /// </summary>
-        /// <param name="instanceID">The instanceID of the asset to retrieve the GUID from.</param>
+        /// <param name="entityId">The entity ID of the asset to retrieve the GUID from.</param>
         /// <returns>The string representation of the GUID of the asset.</returns>
-        public static string GetAssetGUID(int instanceID)
+#if UNITY_6000_5_OR_NEWER
+        public static string GetAssetGUID(EntityId entityId)
         {
-            var path = AssetDatabase.GetAssetPath(instanceID);
+            var path = AssetDatabase.GetAssetPath(entityId);
+#else
+        public static string GetAssetGUID(int entityId)
+        {
+            var path = AssetDatabase.GetAssetPath(entityId);
+#endif
 
             return AssetDatabase.AssetPathToGUID(path);
         }

@@ -176,9 +176,9 @@ namespace Unity.LiveCapture.CompanionApp
             descriptor.Rating = take.Rating;
             descriptor.FrameRate = take.FrameRate;
 
-            if (take.TryGetScreenshotInstanceID(out var instanceID))
+            if (take.TryGetScreenshotEntityId(out var entityId))
             {
-                descriptor.Screenshot = SerializableGuid.FromString(AssetDatabaseUtility.GetAssetGUID(instanceID));
+                descriptor.Screenshot = SerializableGuid.FromString(AssetDatabaseUtility.GetAssetGUID(entityId));
             }
 
             descriptor.TimelineName = take.name;

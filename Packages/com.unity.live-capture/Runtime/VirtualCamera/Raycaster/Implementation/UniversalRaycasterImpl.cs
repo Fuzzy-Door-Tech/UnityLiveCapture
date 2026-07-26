@@ -19,21 +19,39 @@ namespace Unity.LiveCapture.VirtualCamera.Raycasting
             m_PlaceholderTarget = new RenderTexture(1, 1, 0);
             m_Camera.targetTexture = m_PlaceholderTarget;
 
+#if UNITY_6000_5_OR_NEWER
+            RenderPipelineManager.endCameraRendering += OnEndCameraRendering;
+#else
             RenderPipelineBridge.RequestRenderFeature<InjectionPointRenderFeature>();
             InjectionPointRenderPass.onExecute += OnExecute;
+#endif
         }
 
         public override void Dispose()
         {
             m_PlaceholderTarget.Release();
+#if UNITY_6000_5_OR_NEWER
+            RenderPipelineManager.endCameraRendering -= OnEndCameraRendering;
+#else
             InjectionPointRenderPass.onExecute -= OnExecute;
+#endif
             base.Dispose();
         }
 
+#if UNITY_6000_5_OR_NEWER
+        void OnEndCameraRendering(ScriptableRenderContext context, Camera camera)
+        {
+            RenderForCamera(context, camera);
+        }
+#else
         void OnExecute(ScriptableRenderContext context, RenderingData renderingData)
         {
-            var camera = renderingData.cameraData.camera;
+            RenderForCamera(context, renderingData.cameraData.camera);
+        }
+#endif
 
+        void RenderForCamera(ScriptableRenderContext context, Camera camera)
+        {
             if (camera != m_Camera)
                 return;
 
