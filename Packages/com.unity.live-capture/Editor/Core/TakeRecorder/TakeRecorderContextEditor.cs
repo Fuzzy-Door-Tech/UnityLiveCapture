@@ -2,6 +2,10 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 
+#if UNITY_6000_3_OR_NEWER
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+#endif
+
 namespace Unity.LiveCapture.Editor
 {
     using Editor = UnityEditor.Editor;

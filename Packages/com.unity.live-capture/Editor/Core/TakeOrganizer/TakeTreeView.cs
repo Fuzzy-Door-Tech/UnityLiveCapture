@@ -5,6 +5,20 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 
+#if UNITY_6000_5_OR_NEWER
+using TreeViewId = UnityEngine.EntityId;
+using TreeView = UnityEditor.IMGUI.Controls.TreeView<UnityEngine.EntityId>;
+using TreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem<UnityEngine.EntityId>;
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<UnityEngine.EntityId>;
+#elif UNITY_6000_3_OR_NEWER
+using TreeViewId = System.Int32;
+using TreeView = UnityEditor.IMGUI.Controls.TreeView<int>;
+using TreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem<int>;
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+#else
+using TreeViewId = System.Int32;
+#endif
+
 namespace Unity.LiveCapture.Editor
 {
     [Serializable]
@@ -224,7 +238,7 @@ namespace Unity.LiveCapture.Editor
         {
             public T Value { get; private set; }
 
-            public AssetItem(T value, int depth, string displayName) : base(value.GetInstanceID(), depth, displayName)
+            public AssetItem(T value, int depth, string displayName) : base(GetTreeViewId(value), depth, displayName)
             {
                 Value = value;
             }
@@ -235,7 +249,13 @@ namespace Unity.LiveCapture.Editor
             public TakeItem(Take value, int depth, string displayName) : base(value, depth, displayName) { }
         }
 
-        const int k_RootId = 0;
+        static readonly TreeViewId k_RootId = default(TreeViewId);
+
+#if UNITY_6000_5_OR_NEWER
+        static TreeViewId GetTreeViewId(UnityEngine.Object value) => value.GetEntityId();
+#else
+        static TreeViewId GetTreeViewId(UnityEngine.Object value) => value.GetInstanceID();
+#endif
 
         static class Contents
         {
@@ -307,7 +327,7 @@ namespace Unity.LiveCapture.Editor
                 }
 
                 SetSelection(Selection
-                    .Select(t => t.GetInstanceID())
+                    .Select(GetTreeViewId)
                     .ToList());
             }
         }
@@ -392,12 +412,16 @@ namespace Unity.LiveCapture.Editor
             }
         }
 
-        protected override void DoubleClickedItem(int id)
+        protected override void DoubleClickedItem(TreeViewId id)
         {
+#if UNITY_6000_5_OR_NEWER
+            EditorGUIUtility.PingObject(EditorUtility.EntityIdToObject(id));
+#else
             EditorGUIUtility.PingObject(id);
+#endif
         }
 
-        protected override void SelectionChanged(IList<int> selectedIds)
+        protected override void SelectionChanged(IList<TreeViewId> selectedIds)
         {
             Selection = null;
 

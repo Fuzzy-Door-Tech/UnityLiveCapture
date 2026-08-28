@@ -6,6 +6,20 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 
+#if UNITY_6000_5_OR_NEWER
+using TreeViewId = UnityEngine.EntityId;
+using TreeView = UnityEditor.IMGUI.Controls.TreeView<UnityEngine.EntityId>;
+using TreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem<UnityEngine.EntityId>;
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<UnityEngine.EntityId>;
+#elif UNITY_6000_3_OR_NEWER
+using TreeViewId = System.Int32;
+using TreeView = UnityEditor.IMGUI.Controls.TreeView<int>;
+using TreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem<int>;
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+#else
+using TreeViewId = System.Int32;
+#endif
+
 namespace Unity.LiveCapture.Editor
 {
     [Serializable]
@@ -49,15 +63,15 @@ namespace Unity.LiveCapture.Editor
     class DirectoryTreeViewImpl : TreeView
     {
 
-        const int k_RootId = 0;
+        static readonly TreeViewId k_RootId = default(TreeViewId);
 
         static class Contents
         {
+            public static readonly GUIContent FolderIcon = EditorGUIUtility.TrIconContent("Folder Icon");
             public static readonly GUIContent FolderEmptyIcon = EditorGUIUtility.TrIconContent("FolderEmpty Icon");
         }
 
-        HashSet<int> m_AncestorIds;
-        HashSet<int> m_TakeIds;
+        HashSet<string> m_AncestorPaths;
         HashSet<string> m_DirectoriesWithAssets;
         HashSet<string> m_DirectoryLeafs;
 
@@ -74,17 +88,17 @@ namespace Unity.LiveCapture.Editor
         protected override TreeViewItem BuildRoot()
         {
             var paths = AssetDatabase.FindAssets($"t:{typeof(Take).Name}")
-                .Select(guid => AssetDatabase.GUIDToAssetPath(guid));
-            var instanceIds = paths
-                .Select(p => AssetDatabase.LoadMainAssetAtPath(p).GetInstanceID())
+                .Select(guid => AssetDatabase.GUIDToAssetPath(guid))
                 .ToArray();
 
             m_DirectoriesWithAssets = new HashSet<string>(
-                paths.Select(p => Path.GetDirectoryName(p)));
+                paths
+                    .Select(p => Path.GetDirectoryName(p))
+                    .Where(p => !string.IsNullOrEmpty(p))
+                    .Select(NormalizePath));
             m_DirectoryLeafs = new HashSet<string>(EnumerateLeafs(m_DirectoriesWithAssets));
-            m_AncestorIds = new HashSet<int>(
-                new HierarchyProperty(HierarchyType.Assets).FindAllAncestors(instanceIds));
-            m_TakeIds = new HashSet<int>(instanceIds);
+            m_AncestorPaths = new HashSet<string>(
+                m_DirectoriesWithAssets.SelectMany(EnumerateAncestors));
 
             var root = new TreeViewItem(k_RootId, -1, "Root");
 
@@ -106,42 +120,90 @@ namespace Unity.LiveCapture.Editor
             }
         }
 
+        static string NormalizePath(string path)
+        {
+            return path.Replace('\\', '/');
+        }
+
+        static string GetParentDirectory(string path)
+        {
+            var separator = path.LastIndexOf('/');
+
+            return separator < 0 ? string.Empty : path.Substring(0, separator);
+        }
+
+        static int GetDepth(string path)
+        {
+            return path.Count(c => c == '/');
+        }
+
+        static IEnumerable<string> EnumerateAncestors(string directory)
+        {
+            var path = NormalizePath(directory);
+
+            while (!string.IsNullOrEmpty(path))
+            {
+                yield return path;
+
+                if (path == "Assets")
+                {
+                    yield break;
+                }
+
+                path = GetParentDirectory(path);
+            }
+        }
+        static TreeViewId GetTreeViewId(string path)
+        {
+#if UNITY_6000_5_OR_NEWER
+            return AssetDatabase.GetMainAssetEntityId(path);
+#else
+            return AssetDatabase.GetMainAssetInstanceID(path);
+#endif
+        }
+
+        static string GetAssetPath(TreeViewId id)
+        {
+            return AssetDatabase.GetAssetPath(id);
+        }
+
         protected override IList<TreeViewItem> BuildRows(TreeViewItem root)
         {
-            var expandIDs = state.expandedIDs.ToArray();
-            var items = new List<TreeViewItem>(m_AncestorIds.Count);
-            var property = new HierarchyProperty(HierarchyType.Assets);
+            var expandedPaths = new HashSet<string>(
+                state.expandedIDs
+                    .Select(id => GetAssetPath(id))
+                    .Where(path => !string.IsNullOrEmpty(path))
+                    .Select(NormalizePath));
+            var items = new List<TreeViewItem>(m_AncestorPaths.Count);
 
-            while (property.Next(expandIDs))
+            foreach (var path in m_AncestorPaths
+                .OrderBy(GetDepth)
+                .ThenBy(p => p, StringComparer.Ordinal))
             {
-                if (property.isFolder)
+                var parent = GetParentDirectory(path);
+
+                if (path != "Assets" && !expandedPaths.Contains(parent))
                 {
-                    if (!m_AncestorIds.Contains(property.instanceID))
-                    {
-                        continue;
-                    }
-
-                    var item = new TreeViewItem(property.instanceID, property.depth, property.name);
-
-                    items.Add(item);
-
-                    var path = AssetDatabase.GetAssetPath(property.instanceID);
-
-                    if (m_DirectoriesWithAssets.Contains(path))
-                    {
-                        item.icon = property.icon;
-                    }
-                    else
-                    {
-                        item.icon = Contents.FolderEmptyIcon.image as Texture2D;
-                    }
-
-                    if (property.hasChildren && !m_DirectoryLeafs.Contains(path))
-                    {
-                        // add a dummy child in children list to ensure we show the collapse arrow (because we do not fetch data for collapsed items)
-                        item.AddChild(null);
-                    }
+                    continue;
                 }
+
+                var item = new TreeViewItem(
+                    GetTreeViewId(path),
+                    GetDepth(path),
+                    path == "Assets" ? "Assets" : Path.GetFileName(path));
+
+                item.icon = m_DirectoriesWithAssets.Contains(path)
+                    ? Contents.FolderIcon.image as Texture2D
+                    : Contents.FolderEmptyIcon.image as Texture2D;
+
+                if (m_AncestorPaths.Any(p => GetParentDirectory(p) == path)
+                    && !m_DirectoryLeafs.Contains(path))
+                {
+                    // Add a dummy child so the row shows a collapse arrow before its children are fetched.
+                    item.AddChild(null);
+                }
+
+                items.Add(item);
             }
 
             SetupParentsAndChildrenFromDepths(root, items);
@@ -154,7 +216,7 @@ namespace Unity.LiveCapture.Editor
             SelectionChanged(GetSelection());
         }
 
-        protected override void SelectionChanged(IList<int> selectedIds)
+        protected override void SelectionChanged(IList<TreeViewId> selectedIds)
         {
             SelectedTakes = null;
 
@@ -163,7 +225,7 @@ namespace Unity.LiveCapture.Editor
                 var items = FindRows(SortItemIDsInRowOrder(selectedIds));
 
                 SelectedTakes = items
-                    .Select(i => AssetDatabase.GetAssetPath(i.id))
+                    .Select(i => GetAssetPath(i.id))
                     .SelectMany(p => AssetDatabaseUtility.GetAssetsAtPath<Take>(p, false))
                     .ToArray();
             }
