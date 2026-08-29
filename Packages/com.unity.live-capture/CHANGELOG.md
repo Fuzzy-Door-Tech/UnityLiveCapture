@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 - Restored Universal Render Pipeline virtual-camera raycasting compatibility with Unity 6000.5 by using the end-of-camera-render callback instead of removed ScriptableRenderPass overrides.
 - Replaced deprecated asset instance-ID APIs with EntityId APIs used by Unity 6000.5.
+- Migrated editor tree views to the generic TreeView APIs required by Unity 6000.3 and newer.
 
 ## [4.0.1] - 2024-10-02
 

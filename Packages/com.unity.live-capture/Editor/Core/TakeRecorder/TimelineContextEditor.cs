@@ -7,6 +7,10 @@ using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEditor.Timeline;
 
+#if UNITY_6000_3_OR_NEWER
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+#endif
+
 namespace Unity.LiveCapture.Editor
 {
     [ContextEditor(typeof(DirectorContext))]

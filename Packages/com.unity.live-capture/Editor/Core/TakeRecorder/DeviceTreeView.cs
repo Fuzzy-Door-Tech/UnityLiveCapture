@@ -5,6 +5,20 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 
+#if UNITY_6000_5_OR_NEWER
+using TreeViewId = UnityEngine.EntityId;
+using TreeView = UnityEditor.IMGUI.Controls.TreeView<UnityEngine.EntityId>;
+using TreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem<UnityEngine.EntityId>;
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<UnityEngine.EntityId>;
+#elif UNITY_6000_3_OR_NEWER
+using TreeViewId = System.Int32;
+using TreeView = UnityEditor.IMGUI.Controls.TreeView<int>;
+using TreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem<int>;
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+#else
+using TreeViewId = System.Int32;
+#endif
+
 namespace Unity.LiveCapture.Editor
 {
     [Serializable]
@@ -60,11 +74,19 @@ namespace Unity.LiveCapture.Editor
                 throw new ArgumentNullException(nameof(device));
             }
 
-            var id = device.GetInstanceID();
+            InitializeIfNeeded();
 
-            m_Impl.SetSelection(new List<int>() { id },
+            var id = GetTreeViewId(device);
+
+            m_Impl.SetSelection(new List<TreeViewId>() { id },
                 TreeViewSelectionOptions.FireSelectionChanged | TreeViewSelectionOptions.RevealAndFrame);
         }
+
+#if UNITY_6000_5_OR_NEWER
+        static TreeViewId GetTreeViewId(UnityEngine.Object value) => value.GetEntityId();
+#else
+        static TreeViewId GetTreeViewId(UnityEngine.Object value) => value.GetInstanceID();
+#endif
 
         void InitializeIfNeeded()
         {
@@ -161,13 +183,13 @@ namespace Unity.LiveCapture.Editor
         {
             public LiveCaptureDevice Device { get; private set; }
 
-            public DeviceTreeViewItem(LiveCaptureDevice device, int id, int depth, string displayName) : base(id, depth, displayName)
+            public DeviceTreeViewItem(LiveCaptureDevice device, TreeViewId id, int depth, string displayName) : base(id, depth, displayName)
             {
                 Device = device;
             }
         }
 
-        const int k_RootId = 0;
+        static readonly TreeViewId k_RootId = default(TreeViewId);
 
         static class Contents
         {
@@ -201,7 +223,7 @@ namespace Unity.LiveCapture.Editor
 
             foreach (var device in devices)
             {
-                items.Add(new DeviceTreeViewItem(device, device.GetInstanceID(), 0, device.gameObject.name));
+                items.Add(new DeviceTreeViewItem(device, DeviceTreeView.GetTreeViewId(device), 0, device.gameObject.name));
             }
 
             SetupParentsAndChildrenFromDepths(root, items);
@@ -329,7 +351,7 @@ namespace Unity.LiveCapture.Editor
             }
         }
 
-        protected override void SelectionChanged(IList<int> selectedIds)
+        protected override void SelectionChanged(IList<TreeViewId> selectedIds)
         {
             SelectedDevices = IdsToDeviceArray(selectedIds);
         }
@@ -352,7 +374,13 @@ namespace Unity.LiveCapture.Editor
         protected override void SetupDragAndDrop(SetupDragAndDropArgs args)
         {
             DragAndDrop.PrepareStartDrag();
+#if UNITY_6000_5_OR_NEWER
+            DragAndDrop.entityIds = IdsToDeviceArray(args.draggedItemIDs)
+                .Select(DeviceTreeView.GetTreeViewId)
+                .ToArray();
+#else
             DragAndDrop.objectReferences = IdsToDeviceArray(args.draggedItemIDs);
+#endif
             DragAndDrop.StartDrag("Reorder");
         }
 
@@ -361,8 +389,8 @@ namespace Unity.LiveCapture.Editor
             if (args.performDrop)
             {
                 var insertAtIndex = args.insertAtIndex;
-                var objectReferences = DragAndDrop.objectReferences;
-                var objectReferenceCount = objectReferences.Length;
+                var draggedDevices = GetDraggedDevices();
+                var draggedDeviceCount = draggedDevices.Length;
                 var items = GetRows();
 
                 for (var index = 0; index < items.Count; ++index)
@@ -379,20 +407,19 @@ namespace Unity.LiveCapture.Editor
                     }
                     else
                     {
-                        device.SortingOrder = index + objectReferenceCount;
+                        device.SortingOrder = index + draggedDeviceCount;
                     }
                 }
 
-                for (var index = 0; index < objectReferenceCount; ++index)
+                for (var index = 0; index < draggedDeviceCount; ++index)
                 {
-                    var device = objectReferences[index] as LiveCaptureDevice;
+                    var device = draggedDevices[index];
 
                     device.SortingOrder = insertAtIndex + index;
                 }
 
-                SetSelection(objectReferences
-                    .OfType<LiveCaptureDevice>()
-                    .Select(d => d.GetInstanceID())
+                SetSelection(draggedDevices
+                    .Select(DeviceTreeView.GetTreeViewId)
                     .ToList());
 
                 Reload();
@@ -401,12 +428,33 @@ namespace Unity.LiveCapture.Editor
             return DragAndDropVisualMode.Move;
         }
 
-        static LiveCaptureDevice[] IdsToDeviceArray(IList<int> selectedIds)
+        static LiveCaptureDevice[] IdsToDeviceArray(IList<TreeViewId> selectedIds)
         {
+#if UNITY_6000_5_OR_NEWER
+            return selectedIds
+                .Select(id => EditorUtility.EntityIdToObject(id))
+                .OfType<LiveCaptureDevice>()
+                .ToArray();
+#else
             return selectedIds
                 .Select(id => EditorUtility.InstanceIDToObject(id))
                 .OfType<LiveCaptureDevice>()
                 .ToArray();
+#endif
+        }
+
+        static LiveCaptureDevice[] GetDraggedDevices()
+        {
+#if UNITY_6000_5_OR_NEWER
+            return DragAndDrop.entityIds
+                .Select(id => EditorUtility.EntityIdToObject(id))
+                .OfType<LiveCaptureDevice>()
+                .ToArray();
+#else
+            return DragAndDrop.objectReferences
+                .OfType<LiveCaptureDevice>()
+                .ToArray();
+#endif
         }
     }
 }
