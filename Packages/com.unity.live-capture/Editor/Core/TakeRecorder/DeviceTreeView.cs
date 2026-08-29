@@ -74,6 +74,8 @@ namespace Unity.LiveCapture.Editor
                 throw new ArgumentNullException(nameof(device));
             }
 
+            InitializeIfNeeded();
+
             var id = GetTreeViewId(device);
 
             m_Impl.SetSelection(new List<TreeViewId>() { id },

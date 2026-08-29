@@ -73,6 +73,7 @@ namespace Unity.LiveCapture.Editor
 
         HashSet<string> m_AncestorPaths;
         HashSet<string> m_DirectoriesWithAssets;
+        HashSet<string> m_DirectoriesWithChildren;
         HashSet<string> m_DirectoryLeafs;
 
         public Take[] SelectedTakes { get; private set; }
@@ -99,6 +100,8 @@ namespace Unity.LiveCapture.Editor
             m_DirectoryLeafs = new HashSet<string>(EnumerateLeafs(m_DirectoriesWithAssets));
             m_AncestorPaths = new HashSet<string>(
                 m_DirectoriesWithAssets.SelectMany(EnumerateAncestors));
+            m_DirectoriesWithChildren = new HashSet<string>(
+                m_AncestorPaths.Select(GetParentDirectory).Where(p => !string.IsNullOrEmpty(p)));
 
             var root = new TreeViewItem(k_RootId, -1, "Root");
 
@@ -164,7 +167,11 @@ namespace Unity.LiveCapture.Editor
 
         static string GetAssetPath(TreeViewId id)
         {
+#if UNITY_6000_5_OR_NEWER
+            return AssetDatabase.GetAssetPath(EditorUtility.EntityIdToObject(id));
+#else
             return AssetDatabase.GetAssetPath(id);
+#endif
         }
 
         protected override IList<TreeViewItem> BuildRows(TreeViewItem root)
@@ -196,7 +203,7 @@ namespace Unity.LiveCapture.Editor
                     ? Contents.FolderIcon.image as Texture2D
                     : Contents.FolderEmptyIcon.image as Texture2D;
 
-                if (m_AncestorPaths.Any(p => GetParentDirectory(p) == path)
+                if (m_DirectoriesWithChildren.Contains(path)
                     && !m_DirectoryLeafs.Contains(path))
                 {
                     // Add a dummy child so the row shows a collapse arrow before its children are fetched.

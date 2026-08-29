@@ -1,6 +1,5 @@
 using System;
 using System.Reflection;
-using UnityEngine;
 using UnityEditor.IMGUI.Controls;
 
 namespace Unity.LiveCapture.Editor
@@ -22,9 +21,15 @@ namespace Unity.LiveCapture.Editor
                 throw new ArgumentNullException(nameof(treeView));
             }
 
-            Debug.Assert(TreeViewProperty<TIdentifier>.DeselectOnUnhandledMouseDown != null);
+            var property = TreeViewProperty<TIdentifier>.DeselectOnUnhandledMouseDown;
+            if (property == null)
+            {
+                throw new MissingMemberException(
+                    typeof(TreeView<TIdentifier>).FullName,
+                    "deselectOnUnhandledMouseDown");
+            }
 
-            TreeViewProperty<TIdentifier>.DeselectOnUnhandledMouseDown.SetValue(treeView, value);
+            property.SetValue(treeView, value);
         }
 #else
         static readonly PropertyInfo s_DeselectOnUnhandledMouseDown = typeof(TreeView)
@@ -37,7 +42,12 @@ namespace Unity.LiveCapture.Editor
                 throw new ArgumentNullException(nameof(treeView));
             }
 
-            Debug.Assert(s_DeselectOnUnhandledMouseDown != null);
+            if (s_DeselectOnUnhandledMouseDown == null)
+            {
+                throw new MissingMemberException(
+                    typeof(TreeView).FullName,
+                    "deselectOnUnhandledMouseDown");
+            }
 
             s_DeselectOnUnhandledMouseDown.SetValue(treeView, value);
         }
