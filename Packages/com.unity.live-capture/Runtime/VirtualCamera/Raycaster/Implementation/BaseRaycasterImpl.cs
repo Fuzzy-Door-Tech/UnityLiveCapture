@@ -61,12 +61,14 @@ namespace Unity.LiveCapture.VirtualCamera.Raycasting
             void UpdateObjectIds()
             {
                 s_IdToGameObjectMap.Clear();
+                var nextId = 1;
 
                 foreach (var renderer in Resources.FindObjectsOfTypeAll<Renderer>())
                 {
                     if (renderer.gameObject.scene.IsValid())
                     {
-                        var id = renderer.gameObject.GetInstanceID();
+                        // Picking IDs only need to be unique for this render and fit in 32 shader bits.
+                        var id = nextId++;
                         var encodedId = EncodeId(id);
                         renderer.GetPropertyBlock(s_PropertyBlock);
                         s_PropertyBlock.SetVector(k_ObjectIdProp, encodedId);

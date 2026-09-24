@@ -16,10 +16,14 @@ namespace Unity.LiveCapture.VirtualCamera.Raycasting
 
             // We assign a target texture even though its content is not relevant to us to avoid
             // "Missing Vulkan framebuffer attachment image?" errors on Linux + Vulkan.
-            m_PlaceholderTarget = new RenderTexture(1, 1, 0);
+            // RenderGraph requires a depth attachment on a camera output texture.
+            m_PlaceholderTarget = new RenderTexture(1, 1, 24);
+            m_PlaceholderTarget.Create();
             m_Camera.targetTexture = m_PlaceholderTarget;
 
 #if UNITY_6000_5_OR_NEWER
+            // URP's RenderGraph path no longer calls the legacy injection pass. Render this
+            // camera's picking targets after its camera graph has completed.
             RenderPipelineManager.endCameraRendering += OnEndCameraRendering;
 #else
             RenderPipelineBridge.RequestRenderFeature<InjectionPointRenderFeature>();

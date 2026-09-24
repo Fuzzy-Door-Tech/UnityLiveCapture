@@ -89,7 +89,11 @@ namespace Unity.LiveCapture.Editor
                     IterationBase = m_IterationBase.objectReferenceValue as Take
                 };
 
-                var newShot = m_ShotEditor.OnGUI(shot, m_Asset.GetInstanceID());
+#if UNITY_6000_6_OR_NEWER
+                var newShot = m_ShotEditor.OnGUI(shot, EntityId.ToULong(m_Asset.GetEntityId()).ToString());
+#else
+                var newShot = m_ShotEditor.OnGUI(shot, m_Asset.GetInstanceID().ToString());
+#endif
 
                 if (change.changed)
                 {
