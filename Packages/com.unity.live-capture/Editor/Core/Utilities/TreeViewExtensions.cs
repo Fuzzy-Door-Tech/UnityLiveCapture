@@ -7,14 +7,14 @@ namespace Unity.LiveCapture.Editor
     static class TreeViewExtensions
     {
 #if UNITY_6000_3_OR_NEWER
-        static class TreeViewProperty<TIdentifier> where TIdentifier : struct
+        static class TreeViewProperty<TIdentifier> where TIdentifier : unmanaged, IEquatable<TIdentifier>
         {
             public static readonly PropertyInfo DeselectOnUnhandledMouseDown = typeof(TreeView<TIdentifier>)
                 .GetProperty("deselectOnUnhandledMouseDown", BindingFlags.Instance | BindingFlags.NonPublic);
         }
 
         public static void DeselectOnUnhandledMouseDown<TIdentifier>(this TreeView<TIdentifier> treeView, bool value)
-            where TIdentifier : struct
+            where TIdentifier : unmanaged, IEquatable<TIdentifier>
         {
             if (treeView == null)
             {

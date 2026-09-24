@@ -49,10 +49,12 @@ namespace Unity.LiveCapture.VirtualCamera
             }
         }
 
+#if !UNITY_6000_6_OR_NEWER
         public override void SetupRenderPasses(ScriptableRenderer renderer, in RenderingData renderingData)
         {
             m_UrpFocusPlaneRenderPass.Source = renderer.cameraColorTargetHandle;
         }
+#endif
     }
 }
 #endif

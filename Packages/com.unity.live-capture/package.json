@@ -26,9 +26,6 @@
       "path": "Samples~/ARKit Face Sample"
     }
   ],
-  "relatedPackages": {
-    "com.unity.live-capture.tests": "4.0.1"
-  },
   "_upm": {
     "changelog": "### Changed\n- Prepared the package for end of support as of Unity 6.1."
   },

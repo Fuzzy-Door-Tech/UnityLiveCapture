@@ -83,9 +83,9 @@ namespace Unity.LiveCapture.Editor
         }
 
 #if UNITY_6000_5_OR_NEWER
-        static TreeViewId GetTreeViewId(UnityEngine.Object value) => value.GetEntityId();
+        internal static TreeViewId GetTreeViewId(UnityEngine.Object value) => value.GetEntityId();
 #else
-        static TreeViewId GetTreeViewId(UnityEngine.Object value) => value.GetInstanceID();
+        internal static TreeViewId GetTreeViewId(UnityEngine.Object value) => value.GetInstanceID();
 #endif
 
         void InitializeIfNeeded()

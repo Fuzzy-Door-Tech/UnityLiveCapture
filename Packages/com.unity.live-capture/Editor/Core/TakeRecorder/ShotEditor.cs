@@ -34,7 +34,7 @@ namespace Unity.LiveCapture.Editor
         Shot m_Shot;
         bool m_IgnoreDelayedTextFieldChanges;
 
-        public Shot OnGUI(Shot shot, int id = 0)
+        public Shot OnGUI(Shot shot, string id = "0")
         {
             if (Event.current.type == EventType.Layout && m_Shot != shot)
             {
@@ -187,7 +187,7 @@ namespace Unity.LiveCapture.Editor
             return path;
         }
 
-        void RefreshCache(in Shot shot, int id)
+        void RefreshCache(in Shot shot, string id)
         {
             m_Shot = shot;
             m_Takes = AssetDatabaseUtility.GetAssetsAtPath<Take>(shot.Directory);
@@ -195,7 +195,7 @@ namespace Unity.LiveCapture.Editor
             CreateTakeList(id);
         }
 
-        void CreateTakeList(int id)
+        void CreateTakeList(string id)
         {
             m_TakeList = new CompactList(m_Takes, $"{id}/takes");
             m_TakeList.OnCanAddCallback = () => false;

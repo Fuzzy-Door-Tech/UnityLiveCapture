@@ -1,5 +1,11 @@
 # Video Streaming Server
 
+## URP raycaster integration
+
+Before Unity 6000.5, `InjectionPointRenderFeature` invokes `onExecute` after the camera renders. The virtual-camera graphics raycaster is the only subscriber in this package. On Unity 6000.5 and newer, URP's RenderGraph path no longer calls that legacy pass. The raycaster instead listens for `RenderPipelineManager.endCameraRendering`, filters for its dedicated camera, draws into its own picking textures, and submits those commands before GPU readback. Its camera output texture has a depth attachment, as RenderGraph requires.
+
+The `onExecute` event remains available on the older URP path. The newer path does not add an event with a different rendering-data contract. Run `UrpGraphicsRaycasterTests.Raycast_VisibleCube_ReturnsObject` in the Unity Test Runner to check the newer camera callback and object picking.
+
 ## A Video Streaming Server Based on RTSP and H.264
 
 The network layer is based on [SharpRTSP](https://github.com/ngraziano/SharpRTSP)
