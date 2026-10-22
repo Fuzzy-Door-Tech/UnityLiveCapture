@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Fixed
+- FDT patch (#16701): `LtcTimecodeSource` no longer throws a `NullReferenceException` when `Microphone.Start` fails. The source stays enabled and idle, logs one warning from `OnEnable`, and `TryStartRecording` returns `false`.
+- FDT patch (#16701): `LtcTimecodeSource` ends only the input that it started. A stop, disable, or device switch no longer ends an input that another component records, and a start refuses such an input.
+- FDT patch (#16701): `LtcTimecodeSource.CurrentTime` is `null` after its recording stops, fails, or is ended elsewhere, and before the recording decodes its first frame. It previously kept the last frame, or reported 00:00:00:00.
+- FDT patch (#16701): `LtcTimecodeSource.OnValidate` restarts only a recording that the source owns. It no longer starts an idle source.
 - Restored Unity 6000.6 URP focus-plane and frame-line rendering through RenderGraph passes.
 - Gave the URP graphics raycaster output texture a depth attachment required by RenderGraph.
 - Kept Take Organizer folder IDs compatible with Unity 6000.3.
 - Restored Universal Render Pipeline virtual-camera raycasting compatibility with Unity 6000.5 by using the end-of-camera-render callback instead of removed ScriptableRenderPass overrides.
 - Replaced deprecated asset instance-ID APIs with EntityId APIs used by Unity 6000.5.
 - Migrated editor tree views to the generic TreeView APIs required by Unity 6000.3 and newer.
+
+### Added
+- FDT patch (#16701): `LtcTimecodeSource.TryStartRecording`, `StopRecording`, `IsRecording`, `RecordingDevice`, and `Device`; `TimecodeSourceState.Clear`; and the protected `TimecodeSource.ClearCurrentTime`.
 
 ## [4.0.1] - 2024-10-02
 

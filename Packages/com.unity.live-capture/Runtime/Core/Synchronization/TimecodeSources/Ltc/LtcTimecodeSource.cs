@@ -27,6 +27,11 @@ namespace Unity.LiveCapture.Ltc
         /// </remarks>
         const int k_BufferSize = 1;
 
+        // FDT patch (#16701): constant, so a failed start does not allocate.
+        const string k_StartFailedMessage =
+            "LTC Timecode Source did not start recording its audio input. The input may be missing, " +
+            "in use by another component or app, or not permitted. The source stays idle and reports no timecode.";
+
         [SerializeField, Tooltip("The frame rate of the timecodes.")]
         [OnlyStandardFrameRates]
         FrameRate m_FrameRate = StandardFrameRate.FPS_24_00;
@@ -44,6 +49,17 @@ namespace Unity.LiveCapture.Ltc
         float[] m_Buffer;
         Timecode m_LastTimecode;
 
+        // FDT patch (#16701): the input this source started, or null while it does not record.
+        // Only this input is ever ended, so a stop never ends a recording that another component owns.
+        string m_RecordingDevice;
+
+        // FDT patch (#16701): true once the current recording decoded a frame. Until then no
+        // timecode is reported (the vendor reported 00:00:00:00).
+        bool m_HasDecodedFrame;
+
+        // FDT patch (#16701): tests replace the microphone to reproduce failures without hardware.
+        internal IMicrophoneInput m_Microphone = MicrophoneInput.Instance;
+
         /// <inheritdoc/>
         public override string FriendlyName => $"LTC ({name})";
 
@@ -55,26 +71,39 @@ namespace Unity.LiveCapture.Ltc
             set => m_FrameRate = value;
         }
 
+        /// <summary>
+        /// The selected audio input.
+        /// </summary>
+        // FDT patch (#16701)
+        public string Device => m_Device;
+
+        /// <summary>
+        /// The audio input this source records, or <see langword="null"/> when it does not record.
+        /// </summary>
+        // FDT patch (#16701)
+        public string RecordingDevice => m_RecordingDevice;
+
+        /// <summary>
+        /// Whether this source is recording. Only a confirmed recording start sets this, and it clears when
+        /// the recording stops, fails, or is ended by something else.
+        /// </summary>
+        // FDT patch (#16701)
+        public bool IsRecording => m_Clip != null;
+
         void Reset()
         {
-            var devices = Microphone.devices;
-
-            if (devices.Length > 0)
-            {
-                m_Device = devices[0];
-            }
-            else
-            {
-                m_Device = null; // Developer Edit. If no microphones found, reset to null. Otherwise it may try to load a microphone from another computer
-            }
+            // FDT patch (#16701): read through the microphone seam.
+            // Developer Edit. If no microphones found, reset to null. Otherwise it may try to load a microphone from another computer
+            m_Device = m_Microphone.DefaultDevice;
         }
 
         void OnValidate()
         {
-            if (isActiveAndEnabled)
+            // FDT patch (#16701): restart only a recording this source owns. An inspector edit no
+            // longer starts an idle source, and the restart cannot end another component's recording.
+            if (isActiveAndEnabled && IsRecording && !StartRecording())
             {
-                StopRecording();
-                StartRecording();
+                Debug.LogWarning(k_StartFailedMessage, this);
             }
         }
 
@@ -89,7 +118,11 @@ namespace Unity.LiveCapture.Ltc
             // as the device ID may differ across machines or platforms.
             Reset();
 
-            StartRecording();
+            // FDT patch (#16701): a failed start leaves the source enabled and idle instead of throwing.
+            if (!StartRecording() && !string.IsNullOrEmpty(m_Device))
+            {
+                Debug.LogWarning(k_StartFailedMessage, this);
+            }
         }
 
         /// <inheritdoc />
@@ -122,22 +155,49 @@ namespace Unity.LiveCapture.Ltc
 
             m_Device = device;
 
-            if (wasRecording)
+            // FDT patch (#16701): report a failed restart instead of throwing.
+            if (wasRecording && !StartRecording())
             {
-                StartRecording();
+                Debug.LogWarning(k_StartFailedMessage, this);
             }
         }
 
-        void StartRecording()
+        /// <summary>
+        /// Selects <paramref name="device"/> and starts recording it, ending this source's own recording first.
+        /// </summary>
+        /// <remarks>
+        /// The start fails when the source is not active and enabled, when the input is already recording in
+        /// another component (this source then keeps its current recording), or when the microphone does not
+        /// start (this source is then idle).
+        /// </remarks>
+        /// <param name="device">The audio input to record. You can query the available devices using <c>Microphone.devices</c>.</param>
+        /// <returns><see langword="true"/> if the recording started; otherwise, <see langword="false"/>.</returns>
+        // FDT patch (#16701)
+        public bool TryStartRecording(string device)
+        {
+            if (!isActiveAndEnabled || string.IsNullOrEmpty(device))
+                return false;
+
+            m_Device = device;
+            return StartRecording();
+        }
+
+        // FDT patch (#16701): returns whether the recording started. A failed Microphone.Start
+        // (null clip) no longer throws a NullReferenceException.
+        bool StartRecording()
         {
             if (string.IsNullOrEmpty(m_Device))
-                return;
+                return false;
 
+            // FDT patch (#16701): Microphone.Start would restart, and so take over, an input that
+            // another component records. Refuse it and keep this source's current recording.
+            if (m_Device != m_RecordingDevice && m_Microphone.IsRecording(m_Device))
+                return false;
+
+            // FDT patch (#16701): ends only this source's own recording.
             StopRecording();
 
-            // determine the sample rate suitable for the audio
-            Microphone.GetDeviceCaps(m_Device, out var minFreq, out var maxFreq);
-
+            // FDT patch (#16701): the unused Microphone.GetDeviceCaps query is removed.
             // Don't clamp sample rate: when minFreq and maxFreq are 0, the device supports any sample rate
             var sampleRate = k_TargetSampleRate;
 
@@ -145,8 +205,16 @@ namespace Unity.LiveCapture.Ltc
             m_Decoder.Initialize(sampleRate, m_FrameRate.AsFloat());
 
             // start recording audio samples
-            m_Clip = Microphone.Start(m_Device, true, k_BufferSize, sampleRate);
+            var clip = m_Microphone.Start(m_Device, true, k_BufferSize, sampleRate);
+
+            // FDT patch (#16701): Microphone.Start returns null when the input does not start.
+            if (clip == null)
+                return false;
+
+            m_Clip = clip;
+            m_RecordingDevice = m_Device;
             m_ClipPos = 0;
+            m_HasDecodedFrame = false;
 
             // create a buffer large enough to hold the buffered audio
             var bufferSize = k_BufferSize * sampleRate * m_Clip.channels;
@@ -155,17 +223,36 @@ namespace Unity.LiveCapture.Ltc
             {
                 m_Buffer = new float[bufferSize];
             }
+
+            return true;
         }
 
-        void StopRecording()
+        /// <summary>
+        /// Stops recording. The source stays enabled and reports no timecode until a recording starts again.
+        /// </summary>
+        /// <remarks>
+        /// Only an input that this source started is ended.
+        /// </remarks>
+        // FDT patch (#16701): public. The vendor ended whatever input m_Device named, even one that
+        // another component recorded, and kept serving the last frame.
+        public void StopRecording()
         {
-            if (Microphone.IsRecording(m_Device))
+            if (m_Clip != null && m_Microphone.IsRecording(m_RecordingDevice))
             {
-                Microphone.End(m_Device);
+                m_Microphone.End(m_RecordingDevice);
             }
 
+            ReleaseRecording();
+        }
+
+        // FDT patch (#16701): forgets the recording and its timecode, so readers fall back.
+        void ReleaseRecording()
+        {
             m_Clip = null;
+            m_RecordingDevice = null;
+            m_HasDecodedFrame = false;
             m_LastTimecode = default;
+            ClearCurrentTime();
         }
 
         /// <inheritdoc />
@@ -173,7 +260,8 @@ namespace Unity.LiveCapture.Ltc
         {
             frameRate = m_FrameRate;
 
-            if (ProcessSamples())
+            // FDT patch (#16701): no timecode until this recording decodes a frame.
+            if (ProcessSamples() && m_HasDecodedFrame)
             {
                 timecode = m_LastTimecode;
                 return true;
@@ -190,9 +278,17 @@ namespace Unity.LiveCapture.Ltc
                 return false;
             }
 
+            // FDT patch (#16701): the recording can end without this source (another app, a call,
+            // or Microphone.End elsewhere). Stop serving its last frame.
+            if (!m_Microphone.IsRecording(m_RecordingDevice))
+            {
+                ReleaseRecording();
+                return false;
+            }
+
             try
             {
-                var clipPos = Microphone.GetPosition(m_Device);
+                var clipPos = m_Microphone.GetPosition(m_RecordingDevice);
 
                 if (clipPos == m_ClipPos)
                 {
@@ -225,9 +321,11 @@ namespace Unity.LiveCapture.Ltc
             }
         }
 
-        void OnFrameDecoded(LtcDecoder.Frame frame)
+        // FDT patch (#16701): internal so tests can deliver a decoded frame.
+        internal void OnFrameDecoded(LtcDecoder.Frame frame)
         {
             m_LastTimecode = Timecode.FromHMSF(m_FrameRate, frame.hour, frame.minute, frame.second, frame.frame);
+            m_HasDecodedFrame = true;
         }
     }
 }
