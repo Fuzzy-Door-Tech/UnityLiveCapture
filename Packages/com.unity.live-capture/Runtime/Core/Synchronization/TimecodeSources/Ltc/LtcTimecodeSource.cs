@@ -111,7 +111,9 @@ namespace Unity.LiveCapture.Ltc
         {
             // FDT patch (#16701): restart only a recording this source owns. An inspector edit no
             // longer starts an idle source, and the restart cannot end another component's recording.
-            if (isActiveAndEnabled && IsRecording && !StartRecording())
+            // IsRecording stays true until the next poll after a capture ends elsewhere, so check the
+            // session: an edit must not reacquire an input that this source lost.
+            if (isActiveAndEnabled && OwnsRecording() && !StartRecording())
             {
                 Debug.LogWarning(k_StartFailedMessage, this);
             }
@@ -194,6 +196,12 @@ namespace Unity.LiveCapture.Ltc
         public bool TryStartRecording(string device)
         {
             if (!isActiveAndEnabled || string.IsNullOrEmpty(device))
+                return false;
+
+            // FDT patch (#16701): refuse a busy input before selecting it. Otherwise Device names the
+            // refused input while RecordingDevice names the current one, and a later SetDevice to the
+            // refused input returns at its equality guard without moving the recording.
+            if (IsRecordedByAnother(device))
                 return false;
 
             m_Device = device;

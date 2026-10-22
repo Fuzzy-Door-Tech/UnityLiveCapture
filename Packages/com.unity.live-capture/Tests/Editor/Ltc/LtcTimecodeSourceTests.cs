@@ -135,6 +135,15 @@ namespace Unity.LiveCapture.Tests.Editor
             Assert.That(m_Microphone.StartCalls, Is.EqualTo(startsBefore));
             Assert.That(m_Microphone.Ended, Is.Empty);
             Assert.That(m_Source.RecordingDevice, Is.EqualTo(k_InputA));
+            Assert.That(m_Source.Device, Is.EqualTo(k_InputA), "a refused start keeps the current selection");
+
+            // Input B becomes free. Selecting it now moves the recording.
+            m_Microphone.Recording.Remove(k_InputB);
+            m_Source.SetDevice(k_InputB);
+
+            Assert.That(m_Microphone.Ended, Is.EqualTo(new[] { k_InputA }));
+            Assert.That(m_Source.RecordingDevice, Is.EqualTo(k_InputB));
+            Assert.That(m_Source.Device, Is.EqualTo(k_InputB));
         }
 
         [Test]
@@ -331,6 +340,24 @@ namespace Unity.LiveCapture.Tests.Editor
 
             Assert.That(m_Source.RecordingDevice, Is.EqualTo(k_InputA));
             Assert.That(m_Microphone.Ended, Is.EqualTo(new[] { k_InputA }));
+        }
+
+        [Test]
+        public void OnValidate_AfterCaptureEndedElsewhere_DoesNotReacquireInput()
+        {
+            Enable();
+
+            // A call or another app ends the recording before the next poll.
+            m_Microphone.End(k_InputA);
+            var startsBefore = m_Microphone.StartCalls;
+            Assert.That(m_Source.IsRecording, Is.True, "the source has not polled since the capture ended");
+
+            InvokeOnValidate();
+
+            Assert.That(m_Microphone.StartCalls, Is.EqualTo(startsBefore));
+            Assert.That(m_Microphone.Recording, Does.Not.Contain(k_InputA));
+            m_Source.State.Update();
+            Assert.That(m_Source.IsRecording, Is.False);
         }
 
         [Test]
