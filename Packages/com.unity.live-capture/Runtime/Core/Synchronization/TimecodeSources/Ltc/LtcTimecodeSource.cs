@@ -32,6 +32,11 @@ namespace Unity.LiveCapture.Ltc
             "LTC Timecode Source did not start recording its audio input. The input may be missing, " +
             "in use by another component or app, or not permitted. The source stays idle and reports no timecode.";
 
+        // FDT patch (#16701): constant, so a refused device switch does not allocate.
+        const string k_DeviceBusyMessage =
+            "LTC Timecode Source did not switch to the selected audio input because another component records it. " +
+            "The source keeps recording its current input.";
+
         [SerializeField, Tooltip("The frame rate of the timecodes.")]
         [OnlyStandardFrameRates]
         FrameRate m_FrameRate = StandardFrameRate.FPS_24_00;
@@ -52,6 +57,11 @@ namespace Unity.LiveCapture.Ltc
         // FDT patch (#16701): the input this source started, or null while it does not record.
         // Only this input is ever ended, so a stop never ends a recording that another component owns.
         string m_RecordingDevice;
+
+        // FDT patch (#16701): the microphone session this source started (0 while it does not record).
+        // A non-null clip and a matching device name do not prove ownership: another recorder can end
+        // and restart the same input between polls. The session changes on every such restart.
+        int m_RecordingSession;
 
         // FDT patch (#16701): true once the current recording decoded a frame. Until then no
         // timecode is reported (the vendor reported 00:00:00:00).
@@ -151,6 +161,14 @@ namespace Unity.LiveCapture.Ltc
 
             var wasRecording = m_Clip != null;
 
+            // FDT patch (#16701): refuse an input another component records before ending this
+            // source's recording, so the refusal keeps the current input and its timecode.
+            if (wasRecording && IsRecordedByAnother(device))
+            {
+                Debug.LogWarning(k_DeviceBusyMessage, this);
+                return;
+            }
+
             StopRecording();
 
             m_Device = device;
@@ -191,7 +209,8 @@ namespace Unity.LiveCapture.Ltc
 
             // FDT patch (#16701): Microphone.Start would restart, and so take over, an input that
             // another component records. Refuse it and keep this source's current recording.
-            if (m_Device != m_RecordingDevice && m_Microphone.IsRecording(m_Device))
+            // The check uses the session, not the device name, so a lost recording does not count as ours.
+            if (IsRecordedByAnother(m_Device))
                 return false;
 
             // FDT patch (#16701): ends only this source's own recording.
@@ -205,7 +224,7 @@ namespace Unity.LiveCapture.Ltc
             m_Decoder.Initialize(sampleRate, m_FrameRate.AsFloat());
 
             // start recording audio samples
-            var clip = m_Microphone.Start(m_Device, true, k_BufferSize, sampleRate);
+            var clip = m_Microphone.Start(m_Device, true, k_BufferSize, sampleRate, out var session);
 
             // FDT patch (#16701): Microphone.Start returns null when the input does not start.
             if (clip == null)
@@ -213,6 +232,7 @@ namespace Unity.LiveCapture.Ltc
 
             m_Clip = clip;
             m_RecordingDevice = m_Device;
+            m_RecordingSession = session;
             m_ClipPos = 0;
             m_HasDecodedFrame = false;
 
@@ -231,13 +251,13 @@ namespace Unity.LiveCapture.Ltc
         /// Stops recording. The source stays enabled and reports no timecode until a recording starts again.
         /// </summary>
         /// <remarks>
-        /// Only an input that this source started is ended.
+        /// Only a recording that this source started, and that no other recorder has replaced, is ended.
         /// </remarks>
         // FDT patch (#16701): public. The vendor ended whatever input m_Device named, even one that
         // another component recorded, and kept serving the last frame.
         public void StopRecording()
         {
-            if (m_Clip != null && m_Microphone.IsRecording(m_RecordingDevice))
+            if (OwnsRecording())
             {
                 m_Microphone.End(m_RecordingDevice);
             }
@@ -245,11 +265,25 @@ namespace Unity.LiveCapture.Ltc
             ReleaseRecording();
         }
 
+        // FDT patch (#16701): true while this source's own session is the input's current recording.
+        bool OwnsRecording() =>
+            m_Clip != null && m_Microphone.IsCurrentSession(m_RecordingDevice, m_RecordingSession);
+
+        // FDT patch (#16701): true when device records a session that this source did not start.
+        bool IsRecordedByAnother(string device)
+        {
+            if (string.IsNullOrEmpty(device) || !m_Microphone.IsRecording(device))
+                return false;
+
+            return device != m_RecordingDevice || !OwnsRecording();
+        }
+
         // FDT patch (#16701): forgets the recording and its timecode, so readers fall back.
         void ReleaseRecording()
         {
             m_Clip = null;
             m_RecordingDevice = null;
+            m_RecordingSession = 0;
             m_HasDecodedFrame = false;
             m_LastTimecode = default;
             ClearCurrentTime();
@@ -279,8 +313,9 @@ namespace Unity.LiveCapture.Ltc
             }
 
             // FDT patch (#16701): the recording can end without this source (another app, a call,
-            // or Microphone.End elsewhere). Stop serving its last frame.
-            if (!m_Microphone.IsRecording(m_RecordingDevice))
+            // or Microphone.End elsewhere), or another recorder can end and restart the same input.
+            // Either way this clip is no longer the input's recording. Stop serving its last frame.
+            if (!OwnsRecording())
             {
                 ReleaseRecording();
                 return false;

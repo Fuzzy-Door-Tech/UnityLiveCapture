@@ -18,6 +18,8 @@ namespace Unity.LiveCapture.Tests.Editor
         {
             public readonly HashSet<string> Recording = new HashSet<string>();
             public readonly List<string> Ended = new List<string>();
+            readonly Dictionary<string, int> m_Sessions = new Dictionary<string, int>();
+            int m_NextSession;
             public AudioClip Clip;
             public bool FailStart;
             public int StartCalls;
@@ -26,12 +28,17 @@ namespace Unity.LiveCapture.Tests.Editor
 
             public bool IsRecording(string device) => device != null && Recording.Contains(device);
 
-            public AudioClip Start(string device, bool loop, int lengthSec, int frequency)
+            public AudioClip Start(string device, bool loop, int lengthSec, int frequency, out int session)
             {
                 StartCalls++;
                 if (FailStart)
+                {
+                    session = 0;
                     return null;
+                }
                 Recording.Add(device);
+                session = ++m_NextSession;
+                m_Sessions[device] = session;
                 return Clip;
             }
 
@@ -39,9 +46,20 @@ namespace Unity.LiveCapture.Tests.Editor
             {
                 Ended.Add(device);
                 Recording.Remove(device);
+                m_Sessions.Remove(device);
             }
 
             public int GetPosition(string device) => 0;
+
+            public bool IsCurrentSession(string device, int session) =>
+                session != 0 && IsRecording(device) && m_Sessions.TryGetValue(device, out var current) && current == session;
+
+            // Another recorder that follows the handoff contract ends the input and starts it again.
+            public void ReplaceRecording(string device)
+            {
+                End(device);
+                Start(device, true, 1, 44100, out _);
+            }
         }
 
         static readonly Regex k_StartFailed = new Regex("did not start recording");
@@ -157,6 +175,82 @@ namespace Unity.LiveCapture.Tests.Editor
 
             Assert.That(m_Microphone.Ended, Has.Count.EqualTo(1));
             Assert.That(m_Microphone.Recording, Does.Contain(k_InputA));
+        }
+
+        [Test]
+        public void RecordingReplacedByAnotherRecorder_StopsReportingTimecode_AndIsNotEnded()
+        {
+            Enable();
+            DecodeFrame(4);
+            Assert.That(m_Source.CurrentTime, Is.Not.Null);
+
+            // Another recorder ends input A and starts it again before the next poll.
+            // The device-wide recording flag stays true for the replacement.
+            m_Microphone.ReplaceRecording(k_InputA);
+            Assert.That(m_Microphone.IsRecording(k_InputA), Is.True);
+            m_Source.State.Update();
+
+            Assert.That(m_Source.IsRecording, Is.False);
+            Assert.That(m_Source.RecordingDevice, Is.Null);
+            Assert.That(m_Source.CurrentTime, Is.Null);
+
+            // Stopping or disabling must not end the replacement recording.
+            var endsBefore = m_Microphone.Ended.Count;
+            m_Source.StopRecording();
+            m_Host.SetActive(false);
+            Assert.That(m_Microphone.Ended, Has.Count.EqualTo(endsBefore));
+            Assert.That(m_Microphone.Recording, Does.Contain(k_InputA));
+        }
+
+        [Test]
+        public void RecordingReplacedBeforePoll_IsNotEndedOrRestartedByTheSource()
+        {
+            Enable();
+
+            // Replaced before any poll: the source still holds its clip and the device name matches.
+            m_Microphone.ReplaceRecording(k_InputA);
+            var startsBefore = m_Microphone.StartCalls;
+            var endsBefore = m_Microphone.Ended.Count;
+
+            Assert.That(m_Source.TryStartRecording(k_InputA), Is.False, "input A now belongs to another recorder");
+            m_Source.StopRecording();
+
+            Assert.That(m_Microphone.StartCalls, Is.EqualTo(startsBefore));
+            Assert.That(m_Microphone.Ended, Has.Count.EqualTo(endsBefore));
+            Assert.That(m_Microphone.Recording, Does.Contain(k_InputA));
+        }
+
+        [Test]
+        public void SetDevice_ToInputAnotherComponentRecords_KeepsCurrentRecordingAndTimecode()
+        {
+            Enable();
+            DecodeFrame(4);
+            m_Microphone.Recording.Add(k_InputB);
+            var startsBefore = m_Microphone.StartCalls;
+            LogAssert.Expect(LogType.Warning, new Regex("did not switch to the selected audio input"));
+
+            m_Source.SetDevice(k_InputB);
+
+            Assert.That(m_Microphone.StartCalls, Is.EqualTo(startsBefore));
+            Assert.That(m_Microphone.Ended, Is.Empty);
+            Assert.That(m_Source.IsRecording, Is.True);
+            Assert.That(m_Source.RecordingDevice, Is.EqualTo(k_InputA));
+            Assert.That(m_Source.Device, Is.EqualTo(k_InputA));
+            Assert.That(m_Source.CurrentTime, Is.Not.Null);
+            m_Source.State.Update();
+            Assert.That(m_Source.CurrentTime, Is.Not.Null);
+        }
+
+        [Test]
+        public void SetDevice_ToFreeInput_MovesRecording()
+        {
+            Enable();
+
+            m_Source.SetDevice(k_InputB);
+
+            Assert.That(m_Microphone.Ended, Is.EqualTo(new[] { k_InputA }));
+            Assert.That(m_Source.RecordingDevice, Is.EqualTo(k_InputB));
+            Assert.That(m_Source.Device, Is.EqualTo(k_InputB));
         }
 
         [Test]
