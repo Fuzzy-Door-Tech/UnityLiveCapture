@@ -9,12 +9,20 @@ namespace Unity.LiveCapture.Editor
         static ShotLibraryDragAndDrop()
         {
             SceneView.beforeSceneGui += HandleDragAndDrop;
+#if UNITY_6000_6_OR_NEWER
+            EditorApplication.hierarchyWindowItemByEntityIdOnGUI += HierarchyWindowItemCallback;
+#else
             EditorApplication.hierarchyWindowItemOnGUI += HierarchyWindowItemCallback;
+#endif
         }
 
         static Transform s_Parent;
 
+#if UNITY_6000_6_OR_NEWER
+        static void HierarchyWindowItemCallback(EntityId pID, Rect pRect)
+#else
         static void HierarchyWindowItemCallback(int pID, Rect pRect)
+#endif
         {
             if (Event.current.type == EventType.Layout)
             {
@@ -23,7 +31,11 @@ namespace Unity.LiveCapture.Editor
 
             if (pRect.Contains(Event.current.mousePosition))
             {
+#if UNITY_6000_6_OR_NEWER
+                var parentGO = EditorUtility.EntityIdToObject(pID) as GameObject;
+#else
                 var parentGO = EditorUtility.InstanceIDToObject(pID) as GameObject;
+#endif
 
                 if (parentGO != null)
                 {

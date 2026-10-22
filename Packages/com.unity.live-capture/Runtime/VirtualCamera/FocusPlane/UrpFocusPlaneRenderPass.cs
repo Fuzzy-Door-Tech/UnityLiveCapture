@@ -2,6 +2,9 @@
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+#if UNITY_6000_6_OR_NEWER
+using UnityEngine.Rendering.RenderGraphModule;
+#endif
 using UnityEngine.Rendering.Universal;
 
 namespace Unity.LiveCapture.VirtualCamera
@@ -14,6 +17,50 @@ namespace Unity.LiveCapture.VirtualCamera
     /// </remarks>
     class UrpFocusPlaneRenderPass : ScriptableRenderPass
     {
+#if UNITY_6000_6_OR_NEWER
+        class PassData
+        {
+            internal TextureHandle Source;
+            internal TextureHandle Target;
+            internal Material Material;
+        }
+
+        public UrpFocusPlaneRenderPass()
+        {
+            ConfigureInput(ScriptableRenderPassInput.Depth);
+        }
+
+        public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
+        {
+            var camera = frameData.Get<UniversalCameraData>().camera;
+            if (camera.cameraType == CameraType.SceneView ||
+                !FocusPlaneMap.Instance.TryGetInstance(camera, out var focusPlane) ||
+                !focusPlane.isActiveAndEnabled ||
+                !focusPlane.TryGetRenderTarget(out RTHandle target))
+                return;
+
+            if (!(Mathf.Approximately(target.scaleFactor.x, 1) && Mathf.Approximately(target.scaleFactor.y, 1)))
+                throw new InvalidOperationException("Scaling of renderTarget not supported yet.");
+
+            var resources = frameData.Get<UniversalResourceData>();
+            using (var builder = renderGraph.AddUnsafePass<PassData>(FocusPlaneConsts.RenderProfilingSamplerLabel, out var data))
+            {
+                data.Source = resources.activeColorTexture;
+                data.Target = renderGraph.ImportTexture(target);
+                data.Material = focusPlane.RenderMaterial;
+                builder.UseTexture(data.Source, AccessFlags.Read);
+                builder.UseTexture(resources.cameraDepthTexture, AccessFlags.Read);
+                builder.UseTexture(data.Target, AccessFlags.WriteAll);
+                builder.UseAllGlobalTextures(true);
+                builder.SetRenderFunc(static (PassData pass, UnsafeGraphContext context) =>
+                {
+                    context.cmd.SetRenderTarget(pass.Target);
+                    Blitter.BlitTexture(CommandBufferHelpers.GetNativeCommandBuffer(context.cmd),
+                        pass.Source, new Vector4(1, 1, 0, 0), pass.Material, 0);
+                });
+            }
+        }
+#else
         public RTHandle Source;
 
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
@@ -40,6 +87,7 @@ namespace Unity.LiveCapture.VirtualCamera
                 }
             }
         }
+#endif
     }
 }
 #endif

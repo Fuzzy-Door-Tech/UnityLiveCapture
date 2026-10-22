@@ -159,9 +159,11 @@ namespace Unity.LiveCapture.Editor
         static TreeViewId GetTreeViewId(string path)
         {
 #if UNITY_6000_5_OR_NEWER
-            return AssetDatabase.GetMainAssetEntityId(path);
+            var asset = AssetDatabase.LoadMainAssetAtPath(path);
+            return asset != null ? asset.GetEntityId() : default;
 #else
-            return AssetDatabase.GetMainAssetInstanceID(path);
+            var asset = AssetDatabase.LoadMainAssetAtPath(path);
+            return asset != null ? asset.GetInstanceID() : default;
 #endif
         }
 

@@ -59,7 +59,11 @@ namespace Unity.LiveCapture.Editor
 
             using (var change = new EditorGUI.ChangeCheckScope())
             {
-                shot = m_ShotEditor.OnGUI(shot, m_ShotLibrary.GetInstanceID());
+#if UNITY_6000_6_OR_NEWER
+                shot = m_ShotEditor.OnGUI(shot, EntityId.ToULong(m_ShotLibrary.GetEntityId()).ToString());
+#else
+                shot = m_ShotEditor.OnGUI(shot, m_ShotLibrary.GetInstanceID().ToString());
+#endif
 
                 if (change.changed)
                 {

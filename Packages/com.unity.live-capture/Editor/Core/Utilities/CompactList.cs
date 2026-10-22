@@ -502,7 +502,11 @@ namespace Unity.LiveCapture.Editor
             m_ID = (int)s_GetPermanentControlID.Invoke(null, null);
             Property = elements;
 
+#if UNITY_6000_6_OR_NEWER
+            m_StatePath = $"{EntityId.ToULong(elements.serializedObject.targetObject.GetEntityId())}/{elements.propertyPath}";
+#else
             m_StatePath = $"{elements.serializedObject.targetObject.GetInstanceID()}/{elements.propertyPath}";
+#endif
             LoadState();
         }
 

@@ -435,7 +435,11 @@ namespace Unity.LiveCapture.ARKitFaceCapture.DefaultMapper.Editor
                 return false;
             }
 
+#if UNITY_6000_6_OR_NEWER
+            var listID = $"{EntityId.ToULong(target.GetEntityId())}/{rendererMapping.propertyPath}/{EntityId.ToULong(mesh.GetEntityId())}";
+#else
             var listID = $"{target.GetInstanceID()}/{rendererMapping.propertyPath}/{mesh.GetInstanceID()}";
+#endif
 
             if (!m_MappingLists.TryGetValue(listID, out list))
             {
@@ -483,12 +487,20 @@ namespace Unity.LiveCapture.ARKitFaceCapture.DefaultMapper.Editor
 
         bool GetIsEditingPath(SerializedProperty path)
         {
+#if UNITY_6000_6_OR_NEWER
+            return SessionState.GetBool($"{EntityId.ToULong(target.GetEntityId())}/{path.propertyPath}", false);
+#else
             return SessionState.GetBool($"{target.GetInstanceID()}/{path.propertyPath}", false);
+#endif
         }
 
         void SetIsEditingPath(SerializedProperty path, bool isEditingPath)
         {
+#if UNITY_6000_6_OR_NEWER
+            SessionState.SetBool($"{EntityId.ToULong(target.GetEntityId())}/{path.propertyPath}", isEditingPath);
+#else
             SessionState.SetBool($"{target.GetInstanceID()}/{path.propertyPath}", isEditingPath);
+#endif
         }
 
         void DoEyeGUI(FaceActor actor)
