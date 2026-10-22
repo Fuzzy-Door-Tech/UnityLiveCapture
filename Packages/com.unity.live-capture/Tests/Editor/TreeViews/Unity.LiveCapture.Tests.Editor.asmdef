@@ -3,6 +3,7 @@
   "references": [
     "Unity.LiveCapture.Editor",
     "Unity.LiveCapture",
+    "Unity.LiveCapture.Ltc",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner"
   ],

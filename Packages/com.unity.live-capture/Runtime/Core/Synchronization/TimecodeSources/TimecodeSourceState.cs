@@ -92,7 +92,23 @@ namespace Unity.LiveCapture
             s_Sources.Remove(this);
         }
 
-        void Update()
+        /// <summary>
+        /// Forgets the current and last polled frame time, so <see cref="CurrentTime"/> is <see langword="null"/>
+        /// until the source produces a new timecode.
+        /// </summary>
+        /// <remarks>
+        /// Call this when the source stops producing timecode (for example when its capture stops or fails).
+        /// Otherwise the last frame time is kept, and advanced by an active sync provider, indefinitely.
+        /// </remarks>
+        // FDT patch (#16701): a stopped source otherwise keeps serving its last frame.
+        public void Clear()
+        {
+            m_LastPolledFrameTime = null;
+            m_LastFrameTime = null;
+        }
+
+        // FDT patch (#16701): internal so tests can drive one update without the player loop.
+        internal void Update()
         {
             var frameTime = m_PollFrameTime();
 
