@@ -51,6 +51,21 @@ namespace Unity.LiveCapture
         }
 
         /// <summary>
+        /// Clears <see cref="CurrentTime"/> until the next successful poll.
+        /// </summary>
+        /// <remarks>
+        /// Call this when the source stops producing timecode, so readers fall back instead of reading the last frame.
+        /// </remarks>
+        // FDT patch (#16701)
+        protected void ClearCurrentTime()
+        {
+            m_State?.Clear();
+        }
+
+        // FDT patch (#16701): lets tests run one state update without the player loop.
+        internal TimecodeSourceState State => m_State;
+
+        /// <summary>
         /// Gets the latest timecode from the timecode source.
         /// </summary>
         /// <param name="frameRate">The rate at which the timecode is incremented.</param>
