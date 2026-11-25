@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Fixed
+- FDT patch: removed the `SettingsAssetBuild` build hook. It wrote copies of `LiveCaptureSettings`, `SnapshotSettings`, and `VideoServerSettings` into a new `Assets/SettingsAssetBuild` folder in the consuming project before each player build. It put the copies beside the folder's `Resources` child, not in it, so the player never loaded them and used default settings. `CreateFolder` gave the folder a numbered name when one already existed, and a failed or cancelled build skipped the delete, so each build could leave a new `Assets/SettingsAssetBuild N` folder behind. Players still use default settings.
 - FDT patch (#16701): `LtcTimecodeSource` no longer throws a `NullReferenceException` when `Microphone.Start` fails. The source stays enabled and idle, logs one warning from `OnEnable`, and `TryStartRecording` returns `false`.
 - FDT patch (#16701): `LtcTimecodeSource` ends only the input that it started. A stop, disable, or device switch no longer ends an input that another component records, and a start refuses such an input.
 - FDT patch (#16701): `LtcTimecodeSource.CurrentTime` is `null` after its recording stops, fails, or is ended elsewhere, and before the recording decodes its first frame. It previously kept the last frame, or reported 00:00:00:00.
